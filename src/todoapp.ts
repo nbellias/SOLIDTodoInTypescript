@@ -1,51 +1,67 @@
-// src/totdoapp.ts
-import "reflect-metadata";
-import { Container } from "typedi";
-import inquirer from "inquirer";
-import chalk from "chalk";
-import { ITodoService } from "./interfaces/ITodoService";
-import { ConsolePrinter } from "./utils/ConsolePrinter";
-import { TodoService } from "./services/TodoService";
+import 'reflect-metadata';
+import { Container } from 'typedi';
+import inquirer from 'inquirer';
+import { TaskService } from './services/TaskService';
+import { Logger } from './utils/Logger';
 
 async function main() {
-  const container = Container;
-  const todoService = container.get<ITodoService>(TodoService);
+  const logger = Container.get(Logger);
+  const taskService = Container.get(TaskService);
 
   while (true) {
     const { action } = await inquirer.prompt([
       {
-        type: "list",
-        name: "action",
-        message: "What do you want to do?",
-        choices: ["Add Todo", "View Todos", "Exit"],
+        type: 'list',
+        name: 'action',
+        message: 'Choose an action:',
+        choices: ['Add Task', 'List Tasks', 'Complete Task', 'Exit'],
       },
     ]);
 
-    if (action === "Exit") {
-      ConsolePrinter.printMessage("Goodbye!", chalk.green);
+    if (action === 'Exit') {
       break;
     }
 
-    if (action === "Add Todo") {
-      const { title } = await inquirer.prompt([
-        {
-          type: "input",
-          name: "title",
-          message: "Enter todo title:",
-        },
-      ]);
-      const todo = todoService.createTodo(title);
-      ConsolePrinter.printMessage(`Added todo: ${todo.title}`, chalk.cyan);
-    }
+    try {
+      switch (action) {
+        case 'Add Task':
+          const { title } = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'title',
+              message: 'Enter task title:',
+            },
+          ]);
+          taskService.createTask(title);
+          logger.log('Task added!');
+          break;
 
-    if (action === "View Todos") {
-      const todos = todoService.getTodos();
-      todos.forEach((todo) => {
-        const status = todo.done ? chalk.green("Done") : chalk.red("Not Done");
-        ConsolePrinter.printMessage(`${todo.title} - ${status}`);
-      });
+        case 'List Tasks':
+          const tasks = taskService.getTasks();
+          tasks.forEach(task => {
+            const status = task.completed ? '✓' : ' ';
+            console.log(`[${status}] ${task.title}`);
+          });
+          break;
+
+        case 'Complete Task':
+          const tasksToComplete = taskService.getTasks().filter(task => !task.completed);
+          const { taskId } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'taskId',
+              message: 'Choose a task to complete:',
+              choices: tasksToComplete.map(task => ({ name: task.title, value: task.id })),
+            },
+          ]);
+          taskService.completeTask(taskId);
+          logger.log('Task completed!');
+          break;
+      }
+    } catch (error) {
+      logger.error(`An error occurred: ${error}`);
     }
   }
 }
 
-main();
+main().catch(error => console.error('An error occurred:', error));
