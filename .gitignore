@@ -21,4 +21,5 @@ package-lock.json
 *.js
 !*.config.js
 node_modules/
+dist/
 ```
